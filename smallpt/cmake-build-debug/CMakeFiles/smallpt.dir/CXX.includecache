@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/mnt/e/Graphic/Render/smallpt/erand48.h
+math.h
+-
+
+/mnt/e/Graphic/Render/smallpt/main.cpp
+erand48.h
+/mnt/e/Graphic/Render/smallpt/erand48.h
+math.h
+-
+stdlib.h
+-
+stdio.h
+-
+algorithm
+-
+

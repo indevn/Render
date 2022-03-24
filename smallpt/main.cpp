@@ -1,8 +1,9 @@
 // http://www.kevinbeason.com/smallpt
 #include "erand48.h"// pseudo-random number generator, not in <stdlib.h>
-#include <math.h>   // smallpt, a Path Tracer by Kevin Beason, 2008
-#include <stdlib.h> // Make : g++ -O3 -fopenmp smallpt.cpp -origin smallpt
-#include <stdio.h>  //        Remove "-fopenmp" for g++ version < 4.2
+#include <cmath>   // smallpt, a Path Tracer by Kevin Beason, 2008
+#include <cstdlib> // Make : g++ -O3 -fopenmp smallpt.cpp -origin smallpt
+#include <cstdio>  //        Remove "-fopenmp" for g++ version < 4.2
+#include <algorithm>
 
 #define M_PI 3.141592653589793238462643
 
@@ -18,7 +19,7 @@ struct Vec {        // Usage: time ./smallpt 5000 && xv image.ppm
     Vec operator+ (const Vec &b) const { return Vec(x + b.x, y + b.y, z + b.z); }
     Vec operator- (const Vec &b) const { return Vec(x - b.x, y - b.y, z - b.z); }
     Vec operator* (double b) const { return Vec(x * b, y * b, z * b); }
-    Vec operator* (const Vec &b) const { return Vec(x * b.x, y * b.y, z * b.z); }
+    Vec operator* (const Vec &b) const { return Vec(x * b.x, y * b.y, z * b.z); } // 向量乘法，横向量乘以纵向量
     Vec mult (const Vec &b) const { return Vec(x * b.x, y * b.y, z * b.z); }
     Vec &normalize () { return *this = *this * (1 / sqrt(x * x + y * y + z * z)); }
     double dot (const Vec &b) const { return x * b.x + y * b.y + z * b.z; } // cross:
@@ -36,7 +37,7 @@ struct Ray {
 };
 
 // 材质类型，diffuse，specular，菲涅尔镜面散射fresnel specular scattering
-enum Refl_t { DIFF, SPEC, REFR };  // material types, used in radiance()
+enum Refl_t { DIFFUSE, SPECULAR, REFR };  // material types, used in radiance()
 
 struct Sphere {
     double radius;       // radius
@@ -86,15 +87,15 @@ struct Sphere {
 
 // 场景内容维护
 Sphere spheres[] = {//Scene: radius, position, emission, color, material
-        Sphere(1e5, Vec(1e5 + 1, 40.8, 81.6), Vec(), Vec(.75, .25, .25), DIFF),//Left
-        Sphere(1e5, Vec(-1e5 + 99, 40.8, 81.6), Vec(), Vec(.25, .25, .75), DIFF),//Rght
-        Sphere(1e5, Vec(50, 40.8, 1e5), Vec(), Vec(.75, .75, .75), DIFF),//Back
-        Sphere(1e5, Vec(50, 40.8, -1e5 + 170), Vec(), Vec(), DIFF),//Frnt
-        Sphere(1e5, Vec(50, 1e5, 81.6), Vec(), Vec(.75, .75, .75), DIFF),//Botm
-        Sphere(1e5, Vec(50, -1e5 + 81.6, 81.6), Vec(), Vec(.75, .75, .75), DIFF),//Top
-        Sphere(16.5, Vec(27, 16.5, 47), Vec(), Vec(1, 1, 1) * .999, SPEC),//Mirr
+        Sphere(1e5, Vec(1e5 + 1, 40.8, 81.6), Vec(), Vec(.75, .25, .25), DIFFUSE),//Left
+        Sphere(1e5, Vec(-1e5 + 99, 40.8, 81.6), Vec(), Vec(.25, .25, .75), DIFFUSE),//Rght
+        Sphere(1e5, Vec(50, 40.8, 1e5), Vec(), Vec(.75, .75, .75), DIFFUSE),//Back
+        Sphere(1e5, Vec(50, 40.8, -1e5 + 170), Vec(), Vec(), DIFFUSE),//Frnt
+        Sphere(1e5, Vec(50, 1e5, 81.6), Vec(), Vec(.75, .75, .75), DIFFUSE),//Botm
+        Sphere(1e5, Vec(50, -1e5 + 81.6, 81.6), Vec(), Vec(.75, .75, .75), DIFFUSE),//Top
+        Sphere(16.5, Vec(27, 16.5, 47), Vec(), Vec(1, 1, 1) * .999, SPECULAR),//Mirr
         Sphere(16.5, Vec(73, 16.5, 78), Vec(), Vec(1, 1, 1) * .999, REFR),//Glas
-        Sphere(600, Vec(50, 681.6 - .27, 81.6), Vec(12, 12, 12), Vec(), DIFF) //Lite
+        Sphere(600, Vec(50, 681.6 - .27, 81.6), Vec(12, 12, 12), Vec(), DIFFUSE) //Lite
 };
 
 inline double clamp (double x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
@@ -129,13 +130,12 @@ Vec radiance (const Ray &r, int depth, unsigned short *Xi) { // 亮度函数，�
 
     const Sphere &obj = spheres[objID];        // the hit object
 
-    if (depth > 10) return obj.emission;
+    if (depth > 10) return obj.emission; // 防止栈溢出（R.R.是概率性终止的，存在概率使其无终止），强制终止；是有偏的
 
     Vec position = r.origin + r.direction * distance;
 
     Vec normal = (position - obj.possion).normalize(); // 标准化
     Vec nl = normal.dot(r.direction) < 0 ? normal : normal * -1; // 判断方向，含方向的单位矢量
-    Vec f = obj.color; // bsdf value
 
 //    double p;
 //    if (f.x > f.y && f.x > f.z)
@@ -146,14 +146,21 @@ Vec radiance (const Ray &r, int depth, unsigned short *Xi) { // 亮度函数，�
 //        p = f.z;
 
     // 得到f的最大的方向
-    double p = f.x > f.y && f.x > f.z ? f.x : f.y > f.z ? f.y : f.z; // max refl
+    Vec f = obj.color; // bsdf value
+//    double p = f.x > f.y && f.x > f.z ? f.x : f.y > f.z ? f.y : f.z; // max refl
+    double f_maxcom = std::max({f.x,f.y,f.z}); // max refl
 
-    if (++depth > 5)
-            if (erand48(Xi) < p) f = f * (1 / p);
-            else return obj.emission; //R.R.
+    // russain roulette
+    if (++depth > 5) {
+        if (erand48(Xi) < f_maxcom)
+            f = f * (1 / f_maxcom);
+        else
+            return obj.emission; //R.R.
+    }
 
-    // 将面光源当点光源进行计算
-    if (obj.refl == DIFF) {                  // Ideal DIFFUSE reflection
+
+    // 将面光源当点光源进行计算，实现了支持重要性采样的MonteCarlo积分估计
+    if (obj.refl == DIFFUSE) {                  // Ideal DIFFUSE reflection 漫反射模型
         double r1 = 2 * M_PI * erand48(Xi);
         double r2 = erand48(Xi);
         double r2s = sqrt(r2);
@@ -163,21 +170,34 @@ Vec radiance (const Ray &r, int depth, unsigned short *Xi) { // 亮度函数，�
         Vec v = w % u;
 
         Vec d = (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).normalize();
-        return obj.emission + f.mult(radiance(Ray(position, d), depth, Xi));
 
-    } else if (obj.refl == SPEC)            // Ideal SPECULAR reflection
-        return obj.emission +
-               f.mult(radiance(Ray(position, r.direction - normal * 2 * normal.dot(r.direction)), depth, Xi));
+//        return obj.emission + f.mult(radiance(Ray(position, d), depth, Xi));
+        return obj.emission + f*radiance(Ray(position, d), depth, Xi);
 
+    } else if (obj.refl == SPECULAR)            // Ideal SPECULAR reflection 高光反射模型
+        return obj.emission + f*radiance(Ray(position, r.direction - normal * 2 * normal.dot(r.direction)), depth, Xi);
+//        return obj.emission + f.mult(radiance(Ray(position, r.direction - normal * 2 * normal.dot(r.direction)), depth, Xi));
+
+    // 菲涅尔散射模型
     Ray reflRay(position, r.direction - normal * 2 * normal.dot(r.direction));     // Ideal dielectric REFRACTION
     bool into = normal.dot(nl) > 0;                // Ray from outside going in?
     double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.direction.dot(nl), cos2t;
     if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) < 0)    // Total internal reflection
         return obj.emission + f.mult(radiance(reflRay, depth, Xi));
     Vec tdir = (r.direction * nnt - normal * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).normalize();
-    double a = nt - nc, b = nt + nc, R0 = a * a / (b * b), c = 1 - (into ? -ddn : tdir.dot(normal));
-    double Re = R0 + (1 - R0) * c * c * c * c * c, Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
 
+    double a = nt - nc;
+    double b = nt + nc;
+    double R0 = a * a / (b * b);
+    double c = 1 - (into ? -ddn : tdir.dot(normal));
+
+    double Re = R0 + (1 - R0) * c * c * c * c * c;
+    double Tr = 1 - Re;
+    double P = .25 + .5 * Re;
+    double RP = Re / P;
+    double TP = Tr / (1 - P);
+
+    // R.R.
     return obj.emission + f.mult(depth > 2 ? (erand48(Xi) < P ?   // Russian roulette
                                               radiance(reflRay, depth, Xi) * RP :
                                               radiance(Ray(position, tdir), depth, Xi) *
@@ -194,11 +214,16 @@ int main (int argc, char *argv[]) {
     Vec cy = (cx % camera.direction).normalize() * .5135; // camera的上限
     Vec r, *c = new Vec[width * height];
 
-// 便捷的开启 OpenMP的多线程加速功能
+// 开启OpenMP的多线程
 #pragma omp parallel for schedule(dynamic, 1) private(r)       // OpenMP
     for (int y = 0; y < height; y++) {                       // Loop over image rows
-        fprintf(stderr, "\rRendering (%direction spp) %5.2f%%", samplesPerPixel * 4, 100. * y / (height - 1));
-        for (unsigned short x = 0, Xi[3] = {0, 0, y * y * y}; x < width; x++)   // Loop cols
+        float progress = 100. * y / (height - 1); // 进度
+        fprintf(stderr, "\rRendering (%d spp) %5.2f%% [", samplesPerPixel * 4, progress);
+        for(int i=0;i<progress;i+=2){
+            fprintf(stderr, "=");
+        }
+        fprintf(stderr, ">");
+        for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y * y * y)}; x < width; x++)   // Loop cols
 
             // 2*2 MSAA抗锯齿
             for (int sy = 0, i = (height - y - 1) * width + x; sy < 2; sy++)     // 2x2 subpixel rows
@@ -215,6 +240,8 @@ int main (int argc, char *argv[]) {
                     c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
                 }
     }
+
+    ;
 
     // save by ppm
     FILE *f = fopen("image.ppm", "width");         // Write image to PPM file.

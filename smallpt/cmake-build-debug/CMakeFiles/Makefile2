@@ -44,10 +44,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /mnt/d/smallpt
+CMAKE_SOURCE_DIR = /mnt/e/Graphic/Render/smallpt
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /mnt/d/smallpt/cmake-build-debug
+CMAKE_BINARY_DIR = /mnt/e/Graphic/Render/smallpt/cmake-build-debug
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -74,14 +74,14 @@ clean: CMakeFiles/smallpt.dir/clean
 CMakeFiles/smallpt.dir/all:
 	$(MAKE) -f CMakeFiles/smallpt.dir/build.make CMakeFiles/smallpt.dir/depend
 	$(MAKE) -f CMakeFiles/smallpt.dir/build.make CMakeFiles/smallpt.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/d/smallpt/cmake-build-debug/CMakeFiles --progress-num=1,2 "Built target smallpt"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/e/Graphic/Render/smallpt/cmake-build-debug/CMakeFiles --progress-num=1,2 "Built target smallpt"
 .PHONY : CMakeFiles/smallpt.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/smallpt.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/smallpt/cmake-build-debug/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/e/Graphic/Render/smallpt/cmake-build-debug/CMakeFiles 2
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/smallpt.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/smallpt/cmake-build-debug/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/e/Graphic/Render/smallpt/cmake-build-debug/CMakeFiles 0
 .PHONY : CMakeFiles/smallpt.dir/rule
 
 # Convenience name for target.
